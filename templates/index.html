@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<title>{% block title %}{% endblock %} - Song</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            document.getElementById("upload_form").addEventListener("submit", new_submit, false);
+            listSongs();
+
+        });
+
+        function listSongs(){
+            url = "/api/songs";
+            $.getJSON( url, function(result) {
+                $.each(result, function(i, field) {
+                    $("#songlist").append("<div style='float:left'><p onclick=\"loadSong('" + field["file"]["path"] + "')\">" + field["file"]["name"]+"</p></div><div style='float:right'><p style='color:blue;' onclick=\"deleter(" + field["id"] + ", " + field["file"]["id"] + ")\">delete</p></div><div style='clear:both'/>");
+                });
+            });
+        }
+
+        function new_submit(event){
+            event.preventDefault();
+            var XHR = new XMLHttpRequest();
+            XHR.onreadystatechange = function() {
+                if (XHR.readyState === 4) {
+                    var response =JSON.parse(XHR.response);
+                    console.log(response);
+                    var data = {};
+                    var file = {};
+                    file["id"] = response.id;
+                    data["file"] = file;
+                    var request = new XMLHttpRequest();
+                    request.open("POST", "/api/songs");
+
+                    request.onreadystatechange = function() {
+                        if(request.readyState === 4){
+                            var songResponse = JSON.parse(request.response);
+                            $("#songlist").append("<div style='float:left'><p onclick=\"loadSong('" + songResponse.file["path"] + "')\">" + songResponse.file["name"]+"</p></div><div style='float:right'><p style='color:blue;' onclick=\"deleter(" + songResponse.id + ", " + songResponse.file["id"] + ")\">delete</p></div><div style='clear:both'/>");
+                        }
+                    }
+
+                    request.setRequestHeader('Content-Type', 'application/json');
+                    request.send(JSON.stringify(data));
+                }
+            }
+            var fd = new FormData();
+            fd.append("file", document.getElementById("file").files[0])
+            XHR.open("POST", "/api/files");
+            XHR.send(fd);
+        }
+
+        function deleter(songId, fileId){
+            var data = {};
+            var file = {};
+            file["id"] = fileId;
+            data["file"] = file;
+            data["id"]= songId;
+            var request = new XMLHttpRequest();
+            request.open("DELETE", "/api/songs");
+            request.onreadystatechange = function() {
+                if( request.readyState === 4){
+                    var div = document.getElementById("songlist");
+                    div.innerHTML = '';
+                    listSongs();
+                }
+            }
+            request.setRequestHeader('Content-Type', 'application/json');
+            request.send(JSON.stringify(data));
+        }
+
+
+        var loads = 0;
+
+        function submitMessage() {
+            if(loads>0){
+                alert("file submitted, refresh page to update song list");
+            } else {
+                loads = 1;
+            }
+        }
+
+        function loadSong(path){
+            var player = document.getElementById("player");
+            var source = document.getElementById("source");
+            source.src = path
+            player.load();
+            player.play();
+        }
+
+
+
+    </script>
+</head>
+<body>
+<div class="row">
+    <div class="column left" id="songlist"  style="background: white">
+    </div>
+    <div class="column right">
+        <audio  id="player" controls>
+            <source id="source" src="">
+            your browser does not support this audio element
+        </audio>
+    </div>
+    <iframe name="hidden-iframe" style="display:none;" onload="submitMessage()" ></iframe>
+    <div id="song_upload">
+        <form id="upload_form" action="/api/files" method="post" enctype="multipart/form-data" target="hidden-iframe">
+            <input id="file" type="file" name="file" accept="audio/*">
+            <input id="submit" type="submit" value="add song">
+        </form>
+
+    </div>
+</div>
+</body>
+</html>
